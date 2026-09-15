@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Плотность и концентрация кислот</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 620px;
+            width: 100%;
+        }
+        h1 { font-size: 22px; color: #1a3b5d; text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #6b7c8f; font-size: 14px; margin-bottom: 20px; }
+        label { display: block; font-weight: bold; color: #2c3e50; margin-bottom: 6px; font-size: 14px; }
+        select, input {
+            width: 100%; padding: 10px 12px;
+            border: 2px solid #d0dbe8; border-radius: 8px;
+            font-size: 16px; outline: none; background: #fafcff;
+            transition: border-color 0.2s;
+        }
+        select:focus, input:focus { border-color: #3a7bd5; }
+        .row { margin-bottom: 15px; }
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .input-grid .row { margin-bottom: 0; }
+        .result-box {
+            background: #eef6ff;
+            border: 1px solid #c5ddf5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 15px;
+            color: #1a3b5d;
+            line-height: 1.9;
+        }
+        .result-box .val { font-weight: bold; color: #1a6fc4; }
+        .max-info {
+            background: #fff8e6;
+            border: 1px solid #f0dca0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #7a5c00;
+            line-height: 1.6;
+        }
+        .source-info {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #555;
+            line-height: 1.7;
+        }
+        .source-info b { color: #333; }
+        .source-info a {
+            color: #1a6fc4;
+            text-decoration: none;
+            border-bottom: 1px dashed #1a6fc4;
+        }
+        .source-info a:hover {
+            color: #135a9e;
+            border-bottom-style: solid;
+        }
+        .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #a0b0c0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Плотность растворов кислот</h1>
+    <p class="subtitle">Введите любую из четырёх величин — остальные рассчитаются</p>
+
+    <div class="row">
+        <label for="acidSelect">Выберите кислоту</label>
+        <select id="acidSelect" onchange="updateAcid()">
+            <option value="hcl">Соляная кислота (HCl)</option>
+            <option value="h2so4">Серная кислота (H₂SO₄)</option>
+            <option value="hno3">Азотная кислота (HNO₃)</option>
+            <option value="ch3cooh">Уксусная кислота (CH₃COOH)</option>
+            <option value="h3po4">Ортофосфорная кислота (H₃PO₄)</option>
+        </select>
+    </div>
+
+    <div class="input-grid">
+        <div class="row">
+            <label for="inpDensity">Плотность, г/мл</label>
+            <input type="number" id="inpDensity" step="0.001" min="0" placeholder="например, 1.1" oninput="onInput('density')">
+        </div>
+        <div class="row">
+            <label for="inpMass">Массовая доля, %</label>
+            <input type="number" id="inpMass" step="0.01" min="0" placeholder="например, 20" oninput="onInput('mass')">
+        </div>
+        <div class="row">
+            <label for="inpMolar">Концентрация, моль/л</label>
+            <input type="number" id="inpMolar" step="0.001" min="0" placeholder="например, 6.0" oninput="onInput('molar')">
+        </div>
+        <div class="row">
+            <label for="inpGl">Концентрация, г/л</label>
+            <input type="number" id="inpGl" step="0.1" min="0" placeholder="например, 220" oninput="onInput('gl')">
+        </div>
+    </div>
+
+    <div class="result-box" id="result">
+        Введите значение в любое поле...
+    </div>
+
+    <div class="max-info" id="maxInfo"></div>
+    <div class="source-info" id="sourceInfo"></div>
+    <div class="footer">Справочные данные для растворов кислот</div>
+</div>
+
+<script>
+    // ==========================================
+    // БАЗА ДАННЫХ
+    // Формат: [плотность г/мл, массовая доля %, молярность моль/л, г/л]
+    // ==========================================
+    const acidData = {
+        hcl: {
+            name: "Соляная кислота (HCl)",
+            molarMass: 36.46,
+            maxConc: "40,0% (ρ = 1,1980 г/мл)",
+            sourceName: "Большая российская энциклопедия, справочные таблицы для 20°C",
+            sourceUrl: "https://bigenc.ru/",
+            table: [
+                [1.003, 1, 0.276, 10.03], [1.010, 2, 0.554, 20.20], [1.020, 4, 1.119, 40.80],
+                [1.030, 6, 1.693, 61.80], [1.040, 8, 2.278, 83.20], [1.050, 10, 2.877, 105.0],
+                [1.060, 12, 3.487, 127.2], [1.070, 14, 4.110, 149.8], [1.080, 16, 4.746, 172.8],
+                [1.090, 18, 5.396, 196.2], [1.100, 20, 6.060, 220.0], [1.110, 22, 6.740, 244.2],
+                [1.120, 24, 7.436, 268.8], [1.130, 26, 8.148, 293.8], [1.140, 28, 8.878, 319.2],
+                [1.150, 30, 9.626, 345.0], [1.160, 32, 10.393, 371.2], [1.170, 34, 11.179, 397.8],
+                [1.180, 36, 11.986, 424.8], [1.190, 38, 12.814, 452.2], [1.198, 40, 13.470, 479.2]
+            ]
+        },
+        h2so4: {
+            name: "Серная кислота (H₂SO₄)",
+            molarMass: 98.08,
+            maxConc: "98,3% (ρ = 1,841 г/мл)",
+            sourceName: "Учебное пособие БГУТ (до 42%)",
+            sourceUrl: "https://libeldoc.bsuir.by/",
+            sourceNote: "Для концентраций выше 42% данные не верифицированы",
+            table: [
+                [1.000, 0.26, 0.0266, 2.61], [1.010, 1.73, 0.178, 17.48], [1.020, 3.24, 0.337, 33.07],
+                [1.030, 4.75, 0.498, 48.88], [1.040, 6.24, 0.661, 64.86], [1.050, 7.70, 0.825, 80.89],
+                [1.060, 9.13, 0.987, 96.77], [1.070, 10.56, 1.152, 112.99], [1.080, 11.96, 1.317, 129.17],
+                [1.090, 13.36, 1.484, 145.62], [1.100, 14.73, 1.652, 162.03], [1.110, 16.08, 1.820, 178.49],
+                [1.120, 17.43, 1.990, 195.22], [1.130, 18.76, 2.161, 211.99], [1.140, 20.08, 2.334, 228.91],
+                [1.150, 21.38, 2.507, 245.87], [1.160, 22.67, 2.681, 262.97], [1.170, 23.95, 2.857, 280.22],
+                [1.180, 25.21, 3.033, 297.48], [1.190, 26.47, 3.211, 314.99], [1.200, 27.72, 3.391, 332.64],
+                [1.210, 28.95, 3.572, 350.30], [1.220, 30.18, 3.754, 368.20], [1.230, 31.40, 3.938, 386.22],
+                [1.240, 32.61, 4.123, 404.36], [1.250, 33.82, 4.310, 422.75], [1.260, 35.01, 4.498, 441.13],
+                [1.270, 36.19, 4.686, 459.61], [1.280, 37.36, 4.876, 478.21], [1.290, 38.53, 5.068, 496.99],
+                [1.300, 39.68, 5.259, 515.84], [1.310, 40.82, 5.452, 534.74], [1.320, 41.95, 5.646, 553.74]
+            ]
+        },
+        hno3: {
+            name: "Азотная кислота (HNO₃)",
+            molarMass: 63.01,
+            maxConc: "99% (ρ ≈ 1,506 г/мл)",
+            sourceName: "ChemPort (до 20%); отраслевой справочник (25–99%)",
+            sourceUrl: "https://chemport.ru/",
+            sourceNote: "Данные объединены из двух источников",
+            table: [
+                [1.004, 1, 0.159, 10.04], [1.009, 2, 0.320, 20.18], [1.015, 3, 0.483, 30.45],
+                [1.020, 4, 0.647, 40.80], [1.026, 5, 0.814, 51.30], [1.031, 6, 0.981, 61.86],
+                [1.037, 7, 1.151, 72.59], [1.043, 8, 1.324, 83.44], [1.049, 9, 1.498, 94.41],
+                [1.054, 10, 1.673, 105.40], [1.066, 12, 2.030, 127.92], [1.078, 14, 2.395, 150.92],
+                [1.090, 16, 2.768, 174.40], [1.103, 18, 3.153, 198.54], [1.115, 20, 3.541, 223.00],
+                [1.147, 25, 4.552, 286.75], [1.180, 30, 5.617, 354.00], [1.214, 35, 6.748, 424.90],
+                [1.246, 40, 7.910, 498.40], [1.278, 45, 9.135, 575.10], [1.310, 50, 10.397, 655.00],
+                [1.339, 55, 11.697, 736.45], [1.367, 60, 13.027, 820.20], [1.391, 65, 14.367, 904.15],
+                [1.413, 70, 15.723, 989.10], [1.434, 75, 17.087, 1075.5], [1.452, 80, 18.452, 1161.6],
+                [1.459, 82, 19.002, 1196.4], [1.472, 86, 20.120, 1265.9], [1.483, 90, 21.212, 1334.7],
+                [1.506, 99, 23.695, 1490.9]
+            ]
+        },
+        ch3cooh: {
+            name: "Уксусная кислота (CH₃COOH)",
+            molarMass: 60.05,
+            maxConc: "100% (ρ ≈ 1,0498 г/мл); выше 77–79% плотность падает — неоднозначность!",
+            sourceName: "Справочник по аналитической химии; chemanalytica.ru",
+            sourceUrl: "https://chemanalytica.ru/",
+            sourceNote: "Выше 77–79% одной плотности могут соответствовать две концентрации",
+            table: [
+                [0.9996, 1, 0.166, 9.996], [1.0052, 5, 0.837, 50.26], [1.0121, 10, 1.685, 101.21],
+                [1.0195, 15, 2.547, 152.93], [1.0250, 20, 3.414, 205.00], [1.0326, 25, 4.300, 258.15],
+                [1.0369, 30, 5.180, 311.07], [1.0438, 35, 6.083, 365.33], [1.0474, 40, 6.977, 418.96],
+                [1.0534, 45, 7.899, 474.03], [1.0562, 50, 8.794, 528.10], [1.0611, 55, 9.740, 583.61],
+                [1.0642, 60, 10.676, 638.52], [1.0666, 65, 11.617, 693.29], [1.0685, 70, 12.556, 747.95],
+                [1.0696, 75, 13.501, 802.20], [1.0700, 78, 14.107, 834.60], [1.0698, 82, 14.851, 877.24],
+                [1.0689, 85, 15.373, 908.57], [1.0675, 88, 15.898, 939.40], [1.0661, 90, 16.236, 959.49],
+                [1.0643, 92, 16.576, 979.16], [1.0605, 95, 17.078, 1007.5], [1.0498, 100, 17.447, 1049.8]
+            ]
+        },
+        h3po4: {
+            name: "Ортофосфорная кислота (H₃PO₄)",
+            molarMass: 98.00,
+            maxConc: "100% (ρ ≈ 1,87 г/мл, t плавл. 42°C)",
+            sourceName: "ВСН 362-87, Таблица 42 (официальный документ, 20°C)",
+            sourceUrl: "https://docs.cntd.ru/document/1200001108",
+            sourceNote: "Диапазон таблицы: 2–70%",
+            table: [
+                [1.009, 2, 0.184, 20.18], [1.020, 4, 0.408, 40.80], [1.025, 5, 0.523, 51.25],
+                [1.031, 6, 0.631, 61.86], [1.042, 8, 0.851, 83.36], [1.054, 10, 1.076, 105.40],
+                [1.066, 12, 1.305, 127.92], [1.083, 15, 1.658, 162.45], [1.115, 20, 2.276, 223.00],
+                [1.182, 30, 3.618, 354.60], [1.255, 40, 5.122, 502.00], [1.336, 50, 6.816, 668.00],
+                [1.425, 60, 8.724, 855.00], [1.524, 70, 10.882, 1066.8]
+            ]
+        }
+    };
+
+    // Линейная интерполяция по плотности
+    function interpolateByDensity(density, table) {
+        if (density < table[0][0] || density > table[table.length - 1][0]) return null;
+        for (let i = 0; i < table.length - 1; i++) {
+            const p1 = table[i], p2 = table[i + 1];
+            if (density >= p1[0] && density <= p2[0]) {
+                const t = (density - p1[0]) / (p2[0] - p1[0]);
+                return {
+                    density: density,
+                    mass:  p1[1] + t * (p2[1] - p1[1]),
+                    molar: p1[2] + t * (p2[2] - p1[2]),
+                    gl:    p1[3] + t * (p2[3] - p1[3])
+                };
+            }
+        }
+        return null;
+    }
+
+    // Поиск по любой величине
+    function findByValue(value, field, table) {
+        const idx = { density: 0, mass: 1, molar: 2, gl: 3 }[field];
+        let best = null, bestDiff = Infinity;
+        for (const row of table) {
+            const diff = Math.abs(row[idx] - value);
+            if (diff < bestDiff) { bestDiff = diff; best = row; }
+        }
+        const range = table[table.length - 1][idx] - table[0][idx];
+        if (bestDiff > range * 0.2) return null;
+        return {
+            density: best[0],
+            mass: best[1],
+            molar: best[2],
+            gl: best[3]
+        };
+    }
+
+    // Обновление при смене кислоты
+    function updateAcid() {
+        const acid = acidData[document.getElementById('acidSelect').value];
+        document.getElementById('maxInfo').innerHTML =
+            `<b>Максимальная концентрация:</b> ${acid.maxConc}`;
+
+        let srcHtml = `<b>Источник данных:</b> ${acid.sourceName}`;
+        if (acid.sourceUrl) {
+            srcHtml += ` — <a href="${acid.sourceUrl}" target="_blank" rel="noopener noreferrer">перейти к источнику</a>`;
+        }
+        if (acid.sourceNote) {
+            srcHtml += `<br><i>Примечание: ${acid.sourceNote}</i>`;
+        }
+        document.getElementById('sourceInfo').innerHTML = srcHtml;
+
+        clearInputs();
+        document.getElementById('result').innerHTML = 'Введите значение в любое поле...';
+    }
+
+    function clearInputs() {
+        ['inpDensity', 'inpMass', 'inpMolar', 'inpGl'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+    }
+
+    // Обработка ввода в любое поле
+    function onInput(field) {
+        const acidKey = document.getElementById('acidSelect').value;
+        const acid = acidData[acidKey];
+        const inputEl = document.getElementById({density:'inpDensity', mass:'inpMass', molar:'inpMolar', gl:'inpGl'}[field]);
+        const raw = parseFloat(inputEl.value);
+
+        const resultBox = document.getElementById('result');
+
+        if (isNaN(raw) || raw <= 0) {
+            resultBox.innerHTML = 'Введите корректное положительное число.';
+            return;
+        }
+
+        let res;
+        if (field === 'density') {
+            res = interpolateByDensity(raw, acid.table);
+        } else {
+            res = findByValue(raw, field, acid.table);
+        }
+
+        if (!res) {
+            const minD = acid.table[0][0].toFixed(3);
+            const maxD = acid.table[acid.table.length - 1][0].toFixed(3);
+            resultBox.innerHTML = `<span style="color:#c0392b;">Значение вне диапазона таблицы (плотность ${minD}–${maxD} г/мл).</span>`;
+            return;
+        }
+
+        const setVal = (id, v) => { document.getElementById(id).value = v; };
+        if (field !== 'density') setVal('inpDensity', res.density.toFixed(4));
+        if (field !== 'mass')    setVal('inpMass', res.mass.toFixed(3));
+        if (field !== 'molar')   setVal('inpMolar', res.molar.toFixed(4));
+        if (field !== 'gl')      setVal('inpGl', res.gl.toFixed(2));
+
+        resultBox.innerHTML = `
+            <div>плотность, г/мл: <span class="val">${res.density.toFixed(4)}</span></div>
+            <div>массовая доля, %: <span class="val">${res.mass.toFixed(3)}</span></div>
+            <div>концентрация, моль/л: <span class="val">${res.molar.toFixed(4)}</span></div>
+            <div>концентрация, г/л: <span class="val">${res.gl.toFixed(2)}</span></div>
+        `;
+    }
+
+    // Инициализация
+    window.addEventListener('DOMContentLoaded', updateAcid);
+</script>
+</body>
+</html>
